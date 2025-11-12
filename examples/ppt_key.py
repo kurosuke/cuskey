@@ -122,15 +122,10 @@ while True:
         # 現在のモードを取得
         current_mode = mode_a.value
         
-        # MODE Aの場合は即座にF12キーを押す
+        # MODE Aでは長押し判定待ち、MODE Bは既存フロー
         if current_mode == False:  # Mode A
-            keyboard.press(Keycode.F12)
-            ptt_key_pressed = True
             if features["debug_enabled"]:
-                print(f"[DEBUG][Mode A] F12キー押下")
-            else:
-                print("[Mode A] PTT ON (F12)")
-        # MODE Bの場合は長押し判定を待つ
+                print(f"[DEBUG][Mode A] ボタン押下開始")
         else:
             if features["debug_enabled"]:
                 print(f"[DEBUG][Mode B] ボタン押下開始")
@@ -140,8 +135,18 @@ while True:
         current_mode = mode_a.value
         press_duration = current_time - button_press_start_time
         
+        # MODE Aで長押し判定（0.3秒以上）
+        if current_mode == False and not is_long_press and press_duration >= LONG_PRESS_TIME:
+            is_long_press = True
+            keyboard.press(Keycode.F12)
+            ptt_key_pressed = True
+            if features["debug_enabled"]:
+                print(f"[DEBUG][Mode A] 長押し検出 → F12キー押下")
+            else:
+                print("[Mode A] PTT ON (F12)")
+        
         # MODE Bで長押し判定（0.3秒以上）
-        if current_mode == True and not is_long_press and press_duration >= LONG_PRESS_TIME:
+        elif current_mode == True and not is_long_press and press_duration >= LONG_PRESS_TIME:
             is_long_press = True
             wheel_scrolling = True
             if features["debug_enabled"]:
