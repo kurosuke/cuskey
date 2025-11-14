@@ -28,6 +28,12 @@ MIN_PRESS_TIME = 0.05  # 最小押下時間（チャタリング防止）
 LONG_PRESS_TIME = 0.3  # 長押し判定時間（秒）
 WHEEL_SCROLL_INTERVAL = 0.05  # マウスホイールスクロール間隔（秒）
 
+# PTTキーの設定（最大3つまで同時押し可能）
+# 例: [Keycode.CONTROL, Keycode.TAB, Keycode.ONE]          # Ctrl+Tab+1
+#     [Keycode.CONTROL, Keycode.SHIFT, Keycode.F12]        # Ctrl+Shift+F12
+#     [Keycode.OPTION, Keycode.CONTROL, Keycode.ONE]       # Option+Ctrl+1
+PTT_KEYS = [Keycode.CONTROL, Keycode.TAB, Keycode.ONE] 
+
 #
 # ボード設定の取得
 #
@@ -95,7 +101,8 @@ print("-" * 50)
 print("【動作モード】")
 print("  Mode A（スイッチON）:")
 print("    - シングルクリック: Enter")
-print("    - ボタン長押し: F12キー（PTT）")
+ptt_key_names = " + ".join([str(key) for key in PTT_KEYS])
+print(f"    - ボタン長押し: {ptt_key_names}（PTT）")
 print("    - ダブルクリック: ESC")
 print("  Mode B（スイッチOFF）:")
 print("    - シングルクリック: PAGE DOWN")
@@ -138,12 +145,15 @@ while True:
         # MODE Aで長押し判定（0.3秒以上）
         if current_mode == False and not is_long_press and press_duration >= LONG_PRESS_TIME:
             is_long_press = True
-            keyboard.press(Keycode.F12)
+            # 設定された全てのPTTキーを押下
+            for key in PTT_KEYS:
+                keyboard.press(key)
             ptt_key_pressed = True
+            ptt_key_names = " + ".join([str(key) for key in PTT_KEYS])
             if features["debug_enabled"]:
-                print(f"[DEBUG][Mode A] 長押し検出 → F12キー押下")
+                print(f"[DEBUG][Mode A] 長押し検出 → {ptt_key_names}キー押下")
             else:
-                print("[Mode A] PTT ON (F12)")
+                print(f"[Mode A] PTT ON ({ptt_key_names})")
         
         # MODE Bで長押し判定（0.3秒以上）
         elif current_mode == True and not is_long_press and press_duration >= LONG_PRESS_TIME:
@@ -168,12 +178,15 @@ while True:
             press_duration = current_time - button_press_start_time
             current_mode = mode_a.value
             
-            # MODE Aの場合: F12キーをリリース
+            # MODE Aの場合: PTTキーをリリース
             if current_mode == False:
                 if ptt_key_pressed:
-                    keyboard.release(Keycode.F12)
+                    # 設定された全てのPTTキーをリリース（逆順で）
+                    for key in reversed(PTT_KEYS):
+                        keyboard.release(key)
+                    ptt_key_names = " + ".join([str(key) for key in PTT_KEYS])
                     if features["debug_enabled"]:
-                        print(f"[DEBUG][Mode A] F12キーリリース (押下時間: {press_duration:.3f}秒)")
+                        print(f"[DEBUG][Mode A] {ptt_key_names}キーリリース (押下時間: {press_duration:.3f}秒)")
                     else:
                         print("[Mode A] PTT OFF")
                     ptt_key_pressed = False
@@ -292,28 +305,34 @@ while True:
    - 自動起動させたい場合は、code.pyという名前に変更
 
 4. 設定の調整（必要に応じて）
-   - DOUBLE_CLICK_TIME: マルチクリック判定時間（秒）
-     例: DOUBLE_CLICK_TIME = 0.3  # 0.3秒以内の複数クリック
-   
-   - MIN_PRESS_TIME: 最小押下時間（チャタリング防止）
-     例: MIN_PRESS_TIME = 0.05  # 0.05秒以上の押下をカウント
-   
-   - LONG_PRESS_TIME: 長押し判定時間（秒）
-     例: LONG_PRESS_TIME = 0.3  # 0.3秒以上で長押し
-   
-   - WHEEL_SCROLL_INTERVAL: マウスホイールスクロール間隔（秒）
-     例: WHEEL_SCROLL_INTERVAL = 0.05  # 0.05秒間隔でスクロール
+    - PTT_KEYS: PTTで使用するキー（最大3つまで）
+      例: PTT_KEYS = [Keycode.F12]  # F12のみ
+          PTT_KEYS = [Keycode.CONTROL, Keycode.SHIFT, Keycode.F12]  # Ctrl+Shift+F12
+          PTT_KEYS = [Keycode.ALT, Keycode.F12]  # Alt+F12
+    
+    - DOUBLE_CLICK_TIME: マルチクリック判定時間（秒）
+      例: DOUBLE_CLICK_TIME = 0.3  # 0.3秒以内の複数クリック
+    
+    - MIN_PRESS_TIME: 最小押下時間（チャタリング防止）
+      例: MIN_PRESS_TIME = 0.05  # 0.05秒以上の押下をカウント
+    
+    - LONG_PRESS_TIME: 長押し判定時間（秒）
+      例: LONG_PRESS_TIME = 0.3  # 0.3秒以上で長押し
+    
+    - WHEEL_SCROLL_INTERVAL: マウスホイールスクロール間隔（秒）
+      例: WHEEL_SCROLL_INTERVAL = 0.05  # 0.05秒間隔でスクロール
 
 5. 動作確認
    - Picoを接続すると自動的にプログラムが起動
    - シリアルモニタで動作状況を確認可能（Mu Editor、Thonny等）
 
 6. 操作方法
-   MODE A（スイッチON）: ビデオ会議用
-     * ボタン長押し: F12キー（PTT - マイクON/OFF）
-     * ダブルクリック: Enterキー（チャット送信）
-     * トリプルクリック: ESCキー（キャンセル）
-     * Discord、Zoom、Teamsなどで使用可能
+    MODE A（スイッチON）: Whisper Flow
+      * ボタン長押し: PTT_KEYSで設定したキー（PTT - マイクON/OFF）
+      * ダブルクリック: Enterキー（チャット送信）
+      * トリプルクリック: ESCキー（キャンセル）
+      * Discord、Zoom、Teamsなどで使用可能
+      * 最大3つのキーを同時押しできます（例: Ctrl+Shift+F12）
    
    MODE B（スイッチOFF）: ページスクロール用
      * シングルクリック: PAGE DOWNキー（次ページ）
@@ -343,17 +362,19 @@ while True:
 
 【機能詳細】
 
-■ MODE A: ビデオ会議用PTT機能
-  - ボタン長押しでF12キーをPress/Release
-  - ビデオ会議アプリのPTT（Push To Talk）機能に対応
+■ MODE A: AIチャット用PTT機能
+  - ボタン長押しでPTT_KEYSで設定したキーをPress/Release
+  - Whisper Flowアプリ(https://wisprflow.ai/)のPTT（Push To Talk）機能に対応
   - マイクのON/OFFをボタンで直感的に操作
   - ダブルクリックでEnter（チャット送信）
   - トリプルクリックでESC（ダイアログキャンセル）
+  - 最大3つのキーを同時押し可能（例: Ctrl+Tab+1）
   
   動作仕様：
-  - ボタン押下と同時にF12キー押下開始（遅延なし）
-  - ボタンリリースで即座にF12キーリリース
-  - Discord、Zoom、TeamsでF12をPTTキーに設定して使用
+  - ボタン押下と同時にPTTキー押下開始（遅延なし）
+  - ボタンリリースで即座にPTTキーリリース
+  - Discord、Zoom、Teamsで設定したキーをPTTキーに設定して使用
+  - 修飾キー（Ctrl、Shift、Alt）との組み合わせも可能
 
 ■ MODE B: ページスクロール機能
   - シングルクリック: PAGE DOWNキー送信
@@ -369,7 +390,7 @@ while True:
 
 ■ モード切替機能
   - ハードウェアスイッチでMODE A/Bを切替
-  - MODE A: ビデオ会議用（PTT、Enter、ESC）
+  - MODE A: Whisper Flow用（PTT、Enter、ESC）
   - MODE B: スクロール用（PAGE DOWN/UP、ホイール、HOME）
   - リアルタイムでモード変更が反映されます
 
