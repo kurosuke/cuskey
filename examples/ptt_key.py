@@ -301,7 +301,7 @@ while True:
    - cuskey_settings.pyをPicoにコピー
 
 3. このファイルをPicoにコピー
-   - ppt_key.pyという名前でPicoのルートディレクトリに保存
+   - ptt_key.pyという名前でPicoのルートディレクトリに保存
    - 自動起動させたい場合は、code.pyという名前に変更
 
 4. 設定の調整（必要に応じて）
