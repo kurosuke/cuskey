@@ -28,28 +28,14 @@ BOARD_CONFIGS = {
     "PinPat4": {
         "name": "4pin",
         "pins": {
-            "button_gnd": board.GP5,    # ボタン用GNDピン
-            "button": board.GP6,         # ボタン入力ピン
-            "mode_gnd": board.GP7,       # モード切替用GNDピン
-            "mode_a": board.GP8,         # モードAピン
-            "mode_b": None,              # モードBピン（未使用）
+            "button_gnd": board.D5,     # ボタン用GNDピン
+            "button": board.D6,         # ボタン入力ピン
+            "mode_gnd": board.D7,       # モード切替用GNDピン
+            "mode_a": board.D8,         # モードAピン
+            "mode_b": None,             # モードBピン（未使用）
         },
         "features": {
             "debug_enabled": True,       # デバッグ機能の有効化
-            "dual_mode": False,          # デュアルモード（mode_bを使用）
-        }
-    },
-    "PinPat23": {
-        "name": "2pin_3pin ",
-        "pins": {
-            "button_gnd": board.GP7,    # ボタン用GNDピン
-            "button": board.GP8,         # ボタン入力ピン
-            "mode_gnd": board.GP11,      # モード切替用GNDピン
-            "mode_a": board.GP10,        # モードAピン
-            "mode_b": board.GP12,        # モードBピン（定義はあるが未使用）
-        },
-        "features": {
-            "debug_enabled": False,      # デバッグ機能の無効化
             "dual_mode": False,          # デュアルモード（mode_bを使用）
         }
     }

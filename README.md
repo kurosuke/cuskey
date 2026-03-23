@@ -188,3 +188,5 @@ BOARD_CONFIGS = {
 - [CircuitPython HID Library](https://github.com/adafruit/Adafruit_CircuitPython_HID)
 - [Raspberry Pi Pico Documentation](https://www.raspberrypi.com/documentation/microcontrollers/raspberry-pi-pico.html)
 - [USB HID Usage Tables](https://www.usb.org/hid)
+
+https://circuitpython.org/board/sparkfun_pro_micro_rp2040/
