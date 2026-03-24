@@ -1,138 +1,164 @@
-# Raspberry Pi Pico メディアキーボード - 統合版
+# cuskey
 
-## 概要
+![cuskey](images/cuskey.jpeg)
 
-このプロジェクトは、Raspberry Pi Picoを使用したUSBメディアキーボードの実装です。
-PIN配置は、設定ファイルで簡単に切り替えることができます。
+**cuskey** は、RP2040 搭載ボードで動作する CircuitPython 製の USB HID キーコントローラーです。  
+ボタン 1 個＋モードスイッチ 1 個という最小構成で、再生制御・PTT・PIN 入力など様々な用途に使えるカスタムキーデバイスを実現します。
 
-## 機能
+📖 詳細ドキュメント: https://cuskey.poppo-ya.com/
 
-- **Play/Pause コントロール**: メディア再生の制御
-- **マウスホイール操作**: スクロール制御
-- **巻き戻し機能**: 左矢印キーによる巻き戻し
-- **モード切替**: スイッチによる動作モードの切り替え
-- **長押し検出**: 1.5秒の長押しで異なる動作を実行
+---
+
+## 特徴
+
+- **シンプルなハードウェア構成**: ボタン 1 個 + モードスイッチ 1 個
+- **モード切替対応**: スイッチ状態により動作を切り替え（Mode A / Mode B）
+- **短押し・長押し・ダブルクリック**: 1 ボタンで複数のアクションを割り当て可能
+- **USB HID 対応**: Keyboard・ConsumerControl・Mouse すべてに対応
+- **設定ファイルで基板切替**: `cuskey_settings.py` を書き換えるだけでピン配置を変更
+- **豊富な実装例**: `examples/` に用途別サンプルを収録
+
+---
 
 ## ファイル構成
 
 ```
-/
-├── code.py          # メインプログラム（統合版）
-├── settings.py      # ボード設定ファイル
-└── examples/       # sample code
+cuskey/
+├── cuskey_settings.py   # ボード設定（ピン定義・デバッグ設定）
+├── code.py              # 実行スクリプト（examples/ からコピーして使用）
+└── examples/            # 用途別サンプルスクリプト集
+    ├── README.md        # サンプル一覧と動作説明
+    ├── auto_keysend.py       # 自動矢印キー送信
+    ├── meeting_controller.py # 会議用マイクミュート・音量操作
+    ├── pin_sender.py         # PIN コード自動入力
+    ├── ptt_key.py            # Push-To-Talk キー
+    ├── random_mouse.py       # ランダムマウス移動（スクリーンセーバー防止）
+    └── youtube_controller.py # 動画プレイヤー操作
 ```
+
+---
 
 ## 対応ボード
 
-### 1. Pattern Pin配置 4PIN
+`cuskey_settings.py` の `BOARD_TYPE` で使用するピン配置を切り替えます。
 
-**ピン接続:**
-- GP5: ボタン用GND
-- GP6: ボタン入力（プルアップ）
-- GP7: モード切替用GND
-- GP8: モードA入力（プルアップ）
+| BOARD_TYPE | ボタン GND | ボタン入力 | モード GND | モード A |
+|------------|-----------|-----------|-----------|---------|
+| `PinPat4`  | D5        | D6        | D7        | D8      |
 
-### 2. Pattern Pin配置 2PIN + 3PIN
+新しいボードを追加する場合は、`BOARD_CONFIGS` 辞書に設定を追記します（後述）。
 
-**ピン接続:**
-- GP7: ボタン用GND
-- GP8: ボタン入力（プルアップ）
-- GP11: モード切替用GND
-- GP10: モードA入力（プルアップ）
-- GP12: モードB入力（未使用、将来の拡張用）
+---
 
-## セットアップ手順
+## セットアップ
 
-### 1. 必要なライブラリのインストール
+### 1. CircuitPython のインストール
 
-CircuitPython用のHIDライブラリが必要です。以下のファイルを`lib/`フォルダにコピーしてください：
+[CircuitPython ダウンロードページ](https://circuitpython.org/board/sparkfun_pro_micro_rp2040/) からボードに対応した `.uf2` ファイルをダウンロードし、ボードに書き込みます。  
+（`uf2/` フォルダに Sparkfun Pro Micro RP2040 用のファームウェアを同梱しています）
 
-ex on mac /Volumes/CIRCUITPY/
+### 2. HID ライブラリのコピー
+
+Github https://github.com/adafruit/Adafruit_CircuitPython_HID からソースコードをdownload(or git clone) します。
+
+ダウンロードした `Adafruit_CircuitPython_HID/adafruit_hid/` フォルダを CIRCUITPY の `lib/` にコピーします。
+
+**macOS の場合:**
+
 ```
-lib/
-├── adafruit_hid/
-│   ├── __init__.py
-│   ├── keyboard.py
-│   ├── keycode.py
-│   ├── consumer_control.py
-│   ├── consumer_control_code.py
-│   └── mouse.py
+/Volumes/CIRCUITPY/
+└── lib/
+    └── adafruit_hid/
+        ├── __init__.py
+        ├── keyboard.py
+        ├── keycode.py
+        ├── consumer_control.py
+        ├── consumer_control_code.py
+        └── mouse.py
 ```
 
-### 2. ボードの選択
+> **Windows の場合:** CIRCUITPY はドライブレター（例: `D:\`）としてマウントされます。
+> エクスプローラーで `D:\lib\adafruit_hid\` フォルダを作成し、上記ファイルをコピーしてください。
+> ドライブレターは環境によって異なります（デバイスマネージャーまたはエクスプローラーで確認してください）。
 
-`cuskey_settings.py`ファイルを開き、使用するボードを指定します：
+### 3. 設定ファイルの配置
+
+`cuskey_settings.py` を CIRCUITPY のルートにコピーし、使用するボードを指定します。
 
 ```python
-# ボードタイプを選択（"PinPat4" または "PinPat23"）
-BOARD_TYPE = "PinPat4"  # <- ここを変更
+# cuskey_settings.py
+BOARD_TYPE = "PinPat4"   # 使用するピン配置を指定
+DEBUG_MODE = True         # デバッグ出力を有効にする場合は True
 ```
 
-### 3. デバッグモードの設定
+### 4. サンプルスクリプトの配置
 
-必要に応じてデバッグモードの有効/無効を切り替えます：
+[`examples/`](examples/README.md) から用途に合ったスクリプトを選び、`code.py` という名前で CIRCUITPY のルートにコピーします。
 
-```python
-# デバッグモードの有効/無効
-DEBUG_MODE = True  # デバッグ出力を有効にする場合はTrue
+**macOS の場合:**
+
+```bash
+# 例: YouTube コントローラーを使う場合
+cp examples/youtube_controller.py /Volumes/CIRCUITPY/code.py
 ```
 
-### 4. ファイルの転送
+**Windows の場合:**
 
-1. Raspberry Pi PicoをUSBケーブルでPCに接続
-2. `code.py`と`cuskey_settings.py`をPicoのルートディレクトリにコピー
-3. 必要なライブラリを`lib/`フォルダにコピー
-4. Picoが自動的に再起動し、プログラムが実行されます
+```cmd
+:: 例: YouTube コントローラーを使う場合（D: が CIRCUITPY の場合）
+copy examples\youtube_controller.py D:\code.py
+```
 
-## 使用方法
+> **Windows ヒント:** ドライブレターは環境によって異なります。エクスプローラーで CIRCUITPY ドライブを確認してから実行してください。
 
-### 動作モード
+---
 
-#### Mode A（スイッチをGNDに接続）
-- **通常押下**: Play/Pause
-- **長押し（1.5秒）**: 巻き戻し（左矢印キー×2）
-
-#### Mode B（スイッチ開放）
-- **通常押下**: マウスホイール下
-- **長押し（1.5秒）**: Play/Pause
-
-### 回路図
+## ハードウェア回路
 
 ```
 [ボタン回路]
 Button Pin ──┬── Button ──── Button GND Pin
-             └── Pull-up抵抗（内部）
+             └── Pull-up 抵抗（内部）
 
 [モード切替回路]
 Mode A Pin ──┬── Switch ──── Mode GND Pin
-             └── Pull-up抵抗（内部）
+             └── Pull-up 抵抗（内部）
 ```
 
-## カスタマイズ
+- `mode_a.value == False` → **Mode A**（スイッチが GND に接続）
+- `mode_a.value == True`  → **Mode B**（スイッチ開放）
 
-### 設定パラメータの変更
+---
 
-`settings.py`で以下のパラメータを調整できます：
+## 実装例
 
-- `LONG_PRESS_THRESHOLD`: 長押し判定時間（デフォルト: 1.0秒）
-- `DEBOUNCE_TIME`: チャタリング防止時間（デフォルト: 0.05秒）
-- `LOOP_DELAY`: メインループの待機時間（デフォルト: 0.01秒）
-- `DEBUG_COUNTER_THRESHOLD`: デバッグ表示の頻度（デフォルト: 100サイクル）
+[`examples/README.md`](examples/README.md) に各スクリプトの動作概要・操作表・設定定数の一覧をまとめています。
 
-### 新しいボードの追加
+| スクリプト | 用途 |
+|-----------|------|
+| [`auto_keysend.py`](examples/auto_keysend.py) | 矢印キーの自動・手動送信 |
+| [`meeting_controller.py`](examples/meeting_controller.py) | マイクミュート・音量操作 |
+| [`pin_sender.py`](examples/pin_sender.py) | PIN コード自動入力 |
+| [`ptt_key.py`](examples/ptt_key.py) | PTT + ダブルクリック操作 |
+| [`random_mouse.py`](examples/random_mouse.py) | スクリーンセーバー防止 |
+| [`youtube_controller.py`](examples/youtube_controller.py) | 動画プレイヤー操作 |
 
-`cuskey_settings.py`の`BOARD_CONFIGS`辞書に新しいボード設定を追加できます：
+---
+
+## 新しいボード設定の追加
+
+`cuskey_settings.py` の `BOARD_CONFIGS` 辞書に設定を追記します。
 
 ```python
 BOARD_CONFIGS = {
-    "PinPatX": {
-        "name": "Your Board Name",
+    "MyBoard": {
+        "name": "My Custom Board",
         "pins": {
-            "button_gnd": board.GPxx,
-            "button": board.GPxx,
-            "mode_gnd": board.GPxx,
-            "mode_a": board.GPxx,
-            "mode_b": None,
+            "button_gnd": board.GP5,   # ボタン用 GND ピン（None も可）
+            "button":     board.GP6,   # ボタン入力ピン
+            "mode_gnd":   board.GP7,   # モード切替用 GND ピン（None も可）
+            "mode_a":     board.GP8,   # モード A ピン
+            "mode_b":     None,        # モード B ピン（未使用の場合は None）
         },
         "features": {
             "debug_enabled": True,
@@ -142,51 +168,87 @@ BOARD_CONFIGS = {
 }
 ```
 
-## トラブルシューティング
+追加後、`BOARD_TYPE = "MyBoard"` に変更して使用します。
 
-### よくある問題と解決方法
-
-1. **ボタンが反応しない**
-   - ピン接続を確認
-   - プルアップ抵抗が有効になっているか確認
-   - GNDピンが正しく設定されているか確認
-
-2. **モード切替が機能しない**
-   - スイッチの接続を確認
-   - `settings.py`でピン番号が正しく設定されているか確認
-
-3. **デバッグ出力が表示されない**
-   - `DEBUG_MODE`が`True`に設定されているか確認
-   - シリアルモニターが正しく接続されているか確認
-
-4. **巻き戻しが効かない**
-   - 対象アプリケーションにフォーカスが当たっているか確認
-   - Windowsの場合、メディアプレーヤーが左矢印キーに対応しているか確認
+---
 
 ## 技術仕様
 
-- **プログラミング言語**: CircuitPython
-- **対応OS**: Windows, macOS, Linux
-- **USB仕様**: USB HID (Human Interface Device)
-- **消費電力**: 約50mA（動作時）
+- **言語**: CircuitPython
+- **対応ボード**: RP2040 搭載ボード
+- **USB HID**: Keyboard / ConsumerControl / Mouse
+- **依存ライブラリ**: `adafruit_hid`（CircuitPython 組み込みモジュール）
+
+---
 
 ## ライセンス
 
-このプロジェクトはMITライセンスの下で公開されています。
+MIT License — 詳細は [`LICENSE`](LICENSE) を参照してください。
 
-## 貢献
+---
 
-バグ報告や機能提案は、GitHubのIssuesにてお願いします。
+## 実装例ギャラリー
 
-## 更新履歴
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <a href="examples/auto_keysend.py">
+        <img src="images/sample_images/auto_keysend.png" alt="auto_keysend" width="100%">
+      </a>
+      <br><strong>auto_keysend</strong>
+      <br>矢印キーの自動・手動送信
+    </td>
+    <td align="center" width="33%">
+      <a href="examples/meeting_controller.py">
+        <img src="images/sample_images/meeting_controller.png" alt="meeting_controller" width="100%">
+      </a>
+      <br><strong>meeting_controller</strong>
+      <br>マイクミュート・音量操作
+    </td>
+    <td align="center" width="33%">
+      <a href="examples/pin_sender.py">
+        <img src="images/sample_images/pin_sender.png" alt="pin_sender" width="100%">
+      </a>
+      <br><strong>pin_sender</strong>
+      <br>PIN コード自動入力
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="33%">
+      <a href="examples/ptt_key.py">
+        <img src="images/sample_images/ptt_key.png" alt="ptt_key" width="100%">
+      </a>
+      <br><strong>ptt_key</strong>
+      <br>PTT + ダブルクリック操作
+    </td>
+    <td align="center" width="33%">
+      <a href="examples/random_mouse.py">
+        <img src="images/sample_images/random_mouse.png" alt="random_mouse" width="100%">
+      </a>
+      <br><strong>random_mouse</strong>
+      <br>スクリーンセーバー防止
+    </td>
+    <td align="center" width="33%">
+      <a href="examples/youtube_controller.py">
+        <img src="images/sample_images/youtube_controller.png" alt="youtube_controller" width="100%">
+      </a>
+      <br><strong>youtube_controller</strong>
+      <br>動画プレイヤー操作
+    </td>
+  </tr>
+</table>
 
-- **v1.0.0** (2025-08-24): 初回リリース
+---
 
+## キー説明図
 
-## 参考資料
+![key_desc](images/sample_images/key_desc.png)
 
-- [CircuitPython HID Library](https://github.com/adafruit/Adafruit_CircuitPython_HID)
-- [Raspberry Pi Pico Documentation](https://www.raspberrypi.com/documentation/microcontrollers/raspberry-pi-pico.html)
-- [USB HID Usage Tables](https://www.usb.org/hid)
+---
 
-https://circuitpython.org/board/sparkfun_pro_micro_rp2040/
+## 参考リンク
+
+- 📖 [cuskey 公式サイト](https://cuskey.poppo-ya.com/)
+- [CircuitPython](https://circuitpython.org/)
+- [Adafruit CircuitPython HID](https://github.com/adafruit/Adafruit_CircuitPython_HID)
+- [Sparkfun Pro Micro RP2040](https://circuitpython.org/board/sparkfun_pro_micro_rp2040/)
