@@ -22,6 +22,20 @@ PIN_MODE_A = ["1", "2", "3", "4"]  # 変更してください
 # 各桁を文字列で指定。例：["5", "6", "7", "8"] = 5678
 PIN_MODE_B = ["5", "6", "7", "8"]  # 変更してください
 
+# 文字列の数字と HID キーコードの対応表
+DIGIT_KEYCODES = {
+    "0": Keycode.ZERO,
+    "1": Keycode.ONE,
+    "2": Keycode.TWO,
+    "3": Keycode.THREE,
+    "4": Keycode.FOUR,
+    "5": Keycode.FIVE,
+    "6": Keycode.SIX,
+    "7": Keycode.SEVEN,
+    "8": Keycode.EIGHT,
+    "9": Keycode.NINE,
+}
+
 # 各桁間の送信間隔（秒）
 DIGIT_INTERVAL = 0.1
 
@@ -107,9 +121,11 @@ def send_pin(pin_code, mode_label):
 
     for digit in pin_code:
         # 数字キーを送信
-        if digit.isdigit():
-            keycode = Keycode(int(digit))
+        if digit in DIGIT_KEYCODES:
+            keycode = DIGIT_KEYCODES[digit]
             keyboard.send(keycode)
+            if features["debug_enabled"]:
+                print(f"  [DEBUG] '{digit}' を送信")
         else:
             # 数字以外の文字は対応していないことを警告
             print(f"  警告：'{digit}' は数字ではないため送信できません")

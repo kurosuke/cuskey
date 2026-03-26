@@ -1,15 +1,18 @@
 """
 リモート会議用コントローラー
-シングルクリック：マイクミュート切り替え
+シングルクリック：設定した会議アプリ用ミュートショートカット送信
 長押し：音量アップ/ダウン（モードで切り替え）
-Zoom、Teams、Google Meet などで使用可能
+Slack Huddle、Zoom、Teams、Google Meet、Webex などのプリセット例を収録
 """
 
 import digitalio
 import time
 import usb_hid
+from adafruit_hid.keyboard import Keyboard
+from adafruit_hid.keycode import Keycode
 from adafruit_hid.consumer_control import ConsumerControl
 from adafruit_hid.consumer_control_code import ConsumerControlCode
+import cuskey_settings
 
 # =============================================================================
 # ===================== ここから設定エリア =====================
@@ -17,6 +20,80 @@ from adafruit_hid.consumer_control_code import ConsumerControlCode
 
 # 長押し判定時間（秒）
 LONG_PRESS_TIME = 0.3
+
+# 会議アプリのマイクミュート切り替えショートカット
+# 使いたいアプリ / OS に合わせてプリセット名を選択
+# 例:
+#   slack_macos, slack_windows
+#   zoom_macos, zoom_windows
+#   teams_macos, teams_windows
+#   google_meet_macos, google_meet_windows
+#   webex_macos, webex_windows
+#   custom
+MUTE_PRESET = "zoom_macos"
+
+# custom を選んだときに使うショートカット
+CUSTOM_MUTE_KEYS = (Keycode.COMMAND, Keycode.SHIFT, Keycode.A)
+CUSTOM_MUTE_LABEL = "Command+Shift+A"
+CUSTOM_MUTE_APP_LABEL = "Custom shortcut"
+
+MUTE_SHORTCUT_PRESETS = {
+    "slack_macos": (
+        (Keycode.COMMAND, Keycode.SHIFT, Keycode.SPACE),
+        "Command+Shift+Space",
+        "Slack Huddle macOS",
+    ),
+    "slack_windows": (
+        (Keycode.CONTROL, Keycode.SHIFT, Keycode.SPACE),
+        "Control+Shift+Space",
+        "Slack Huddle Windows/Linux",
+    ),
+    "zoom_macos": (
+        (Keycode.COMMAND, Keycode.SHIFT, Keycode.A),
+        "Command+Shift+A",
+        "Zoom macOS",
+    ),
+    "zoom_windows": (
+        (Keycode.ALT, Keycode.A),
+        "Alt+A",
+        "Zoom Windows/Linux",
+    ),
+    "teams_macos": (
+        (Keycode.COMMAND, Keycode.SHIFT, Keycode.M),
+        "Command+Shift+M",
+        "Microsoft Teams macOS",
+    ),
+    "teams_windows": (
+        (Keycode.CONTROL, Keycode.SHIFT, Keycode.M),
+        "Control+Shift+M",
+        "Microsoft Teams Windows",
+    ),
+    "google_meet_macos": (
+        (Keycode.COMMAND, Keycode.D),
+        "Command+D",
+        "Google Meet macOS",
+    ),
+    "google_meet_windows": (
+        (Keycode.CONTROL, Keycode.D),
+        "Control+D",
+        "Google Meet Windows/Linux",
+    ),
+    "webex_macos": (
+        (Keycode.COMMAND, Keycode.SHIFT, Keycode.M),
+        "Command+Shift+M",
+        "Webex macOS",
+    ),
+    "webex_windows": (
+        (Keycode.CONTROL, Keycode.M),
+        "Control+M",
+        "Webex Windows",
+    ),
+    "custom": (
+        CUSTOM_MUTE_KEYS,
+        CUSTOM_MUTE_LABEL,
+        CUSTOM_MUTE_APP_LABEL,
+    ),
+}
 
 # 音量変更の間隔（秒）- 長押し中の連続送信間隔
 VOLUME_INTERVAL = 0.1
@@ -31,19 +108,27 @@ LOOP_DELAY = 0.01
 # ===================== ここまで設定エリア =====================
 # =============================================================================
 
-# ボード設定をインポート
-import cuskey_settings
-
-#
 # ボード設定の取得
-#
 pins = cuskey_settings.get_pins()
 features = cuskey_settings.get_features()
 board_name = cuskey_settings.get_board_name()
 
+
+def get_mute_shortcut(preset_name):
+    """選択したプリセット名からショートカット設定を取得"""
+    preset = MUTE_SHORTCUT_PRESETS.get(preset_name)
+    if preset is None:
+        print(f"[WARN] 未知の MUTE_PRESET: {preset_name} -> custom を使用します")
+        return MUTE_SHORTCUT_PRESETS["custom"]
+    return preset
+
+
+MUTE_KEYS, MUTE_KEYS_LABEL, MUTE_TARGET_APP = get_mute_shortcut(MUTE_PRESET)
+
 #
-# ConsumerControl の初期化（メディアキー用）
+# Keyboard / ConsumerControl の初期化
 #
+keyboard = Keyboard(usb_hid.devices)
 consumer_control = ConsumerControl(usb_hid.devices)
 
 #
@@ -85,19 +170,22 @@ last_volume_send_time = 0
 
 
 def toggle_mute():
-    """マイクミュートを切り替え"""
-    consumer_control.send(ConsumerControlCode.MIC_MUTE)
-    print("🎤 マイクミュート切り替え")
+    """設定したショートカットで会議アプリのマイクミュートを切り替え"""
+    keyboard.send(*MUTE_KEYS)
+    if features["debug_enabled"]:
+        print(f"[DEBUG] マイクミュート切り替えショートカット送信: {MUTE_KEYS_LABEL}")
+    else:
+        print("🎤 マイクミュート切り替え")
 
 
 def adjust_volume(direction):
     """音量を調整（direction: 'up' または 'down'）"""
     if direction == 'up':
-        consumer_control.send(ConsumerControlCode.VOLUME_UP)
+        consumer_control.send(ConsumerControlCode.VOLUME_INCREMENT)
         if features["debug_enabled"]:
             print("🔊 音量アップ")
     else:
-        consumer_control.send(ConsumerControlCode.VOLUME_DOWN)
+        consumer_control.send(ConsumerControlCode.VOLUME_DECREMENT)
         if features["debug_enabled"]:
             print("🔉 音量ダウン")
 
@@ -110,17 +198,22 @@ print(f"ボードタイプ：{cuskey_settings.BOARD_TYPE}")
 print(f"デバッグモード：{features['debug_enabled']}")
 print("-" * 50)
 print("【操作方法】")
-print("  シングルクリック：< 1 秒）: マイクミュート切り替え 🎤")
-print("  長押し（>= 1 秒）:")
+print(f"  シングルクリック（< {LONG_PRESS_TIME} 秒）: マイクミュート切り替え 🎤")
+print(f"    - プリセット: {MUTE_PRESET}")
+print(f"    - 対象アプリ: {MUTE_TARGET_APP}")
+print(f"    - 送信ショートカット: {MUTE_KEYS_LABEL}")
+print(f"  長押し（>= {LONG_PRESS_TIME} 秒）:")
 print(f"    * Mode A（スイッチ ON）: 音量アップ 🔊")
 print(f"    * Mode B（スイッチ OFF）: 音量ダウン 🔉")
 print("-" * 50)
-print("【対応アプリ】")
-print("  - Zoom")
-print("  - Microsoft Teams")
-print("  - Google Meet")
-print("  - Discord")
-print("  - Skype など")
+print("【ミュートショートカット例】")
+print("  - slack_macos / slack_windows")
+print("  - zoom_macos / zoom_windows")
+print("  - teams_macos / teams_windows")
+print("  - google_meet_macos / google_meet_windows")
+print("  - webex_macos / webex_windows")
+print("  - custom")
+print("  ※ 利用アプリに合わせて MUTE_PRESET を変更してください")
 print("-" * 50)
 
 #
@@ -169,6 +262,7 @@ while True:
                 adjust_volume('up')
             else:  # Mode B: 音量ダウン
                 adjust_volume('down')
+            last_volume_send_time = current_time
         
         # 長押し中は連続で音量変更
         if volume_adjusting and (current_time - last_volume_send_time >= VOLUME_INTERVAL):
@@ -238,28 +332,30 @@ while True:
      * Mode B（スイッチ OFF）: 長押しで音量ダウン
    
    - ボタン操作:
-     * シングルクリック（0.3 秒未満）: マイクミュート切り替え 🎤
+     * シングルクリック（0.3 秒未満）: 選択中の MUTE_PRESET を送信 🎤
      * 長押し（0.3 秒以上）: 音量変更（Mode A=UP, Mode B=DOWN）
 
 7. 対応アプリ
+   - Slack Huddle
    - Zoom
    - Microsoft Teams
    - Google Meet
-   - Discord
-   - Skype
-   - その他、ConsumerControl をサポートするアプリケーション
+   - Webex
+   - その他、キーボードショートカットでミュート切り替えできるアプリ
 
 ============================================================================
 【機能詳細】
 
 ■ マイクミュート切り替え（シングルクリック）
-  - ConsumerControlCode.MIC_MUTE を送信
-  - Zoom、Teams、Google Meet などでマイクオン/オフを切り替え
-  - アプリケーションに依存しない標準的な操作
+  - MUTE_PRESET で選択したキーボードショートカットを送信
+  - 既定値は Zoom macOS の Command + Shift + A
+  - Slack / Zoom / Teams / Google Meet / Webex の例を収録
+  - 独自ショートカットを使いたい場合は MUTE_PRESET = "custom" にして
+    CUSTOM_MUTE_KEYS / CUSTOM_MUTE_LABEL を変更して使用
 
 ■ 音量調整（長押し）
-  - Mode A: 音量アップ（ConsumerControlCode.VOLUME_UP）
-  - Mode B: 音量ダウン（ConsumerControlCode.VOLUME_DOWN）
+  - Mode A: 音量アップ（ConsumerControlCode.VOLUME_INCREMENT）
+  - Mode B: 音量ダウン（ConsumerControlCode.VOLUME_DECREMENT）
   - 押している間、設定間隔で連続送信
   - 離すと即座に停止
 
@@ -268,7 +364,8 @@ while True:
 
 ■ マイクミュートが反応しない場合
   - アプリケーションのウィンドウにフォーカスが当たっているか確認
-  - アプリが ConsumerControl をサポートしているか確認
+  - MUTE_PRESET が利用中のアプリ/OS と一致しているか確認
+  - custom を使う場合は CUSTOM_MUTE_KEYS を確認
   
 ■ 音量変更が遅い/速すぎる場合
   - VOLUME_INTERVAL の値を調整（小さいほど速い）
@@ -282,7 +379,7 @@ while True:
 ■ 初期バージョン
   - シングルクリックでマイクミュート切り替え機能を実装
   - 長押しで音量アップ/ダウン（モード切り替え）を実装
-  - Zoom、Teams、Google Meet などのリモート会議アプリに対応
+  - Slack、Zoom、Teams、Google Meet、Webex のプリセット例を収録
 
 ============================================================================
 """

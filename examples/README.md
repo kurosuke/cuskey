@@ -27,14 +27,15 @@
 **リモート会議用コントローラー**
 
 > Zoom・Teams・Google Meet などのオンライン会議でよく使う「マイクミュート切り替え」と「音量調整」を
-> ボタン 1 個で操作できます。短押しでミュートトグル、長押しでモードに応じた音量変更を行います。
+> ボタン 1 個で操作できます。`MUTE_PRESET` を切り替えるだけで Slack Huddle・Zoom・Teams・Google Meet・Webex の
+> ミュートショートカット例を選べます。短押しで選択中のショートカットを送り、長押しでモードに応じた音量変更を行います。
 
 | 操作 | Mode A | Mode B |
 |------|--------|--------|
-| 短押し | マイクミュート切り替え（`MIC_MUTE`） | 同左 |
+| 短押し | `MUTE_PRESET` で選んだショートカット送信 | 同左 |
 | 長押し | 音量アップを連続送信 | 音量ダウンを連続送信 |
 
-主要定数: `LONG_PRESS_TIME`（0.3秒）、`VOLUME_INTERVAL`（0.1秒）
+主要定数: `MUTE_PRESET`、`LONG_PRESS_TIME`（0.3秒）、`VOLUME_INTERVAL`（0.1秒）
 
 ---
 
@@ -112,7 +113,7 @@
 | スクリプト | Keyboard | ConsumerControl | Mouse |
 |-----------|:--------:|:---------------:|:-----:|
 | `auto_keysend.py` | ✅ | — | — |
-| `meeting_controller.py` | — | ✅ | — |
+| `meeting_controller.py` | ✅ | ✅ | — |
 | `pin_sender.py` | ✅ | — | — |
 | `ptt_key.py` | ✅ | — | ✅ |
 | `random_mouse.py` | — | — | ✅ |
